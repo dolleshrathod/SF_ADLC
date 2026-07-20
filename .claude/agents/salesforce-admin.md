@@ -1,5 +1,5 @@
 ---
-name: sf_admin_agent
+name: salesforce-admin
 description: "MUST BE USED for all declarative/admin Salesforce work. Use for: Custom Objects, Fields, Validation Rules, Page Layouts, Record Types, Permission Sets, Profiles, Flows, Reports, Dashboards. Creates metadata files and commits to the feature branch created by salesforce-design. Does NOT deploy to org."
 model: sonnet
 color: blue
@@ -70,7 +70,7 @@ You do NOT handle: deploying to org, Apex, LWC, Aura, Visualforce.
 
 ## Persistent agent memory
 
-Memory directory: `.claude/agent-memory-local/sf_admin_agent/`
+Memory directory: `.claude/agent-memory-local/salesforce-admin/`
 
 Save: deployment errors and fixes, org-specific quirks, confirmed naming conventions.
 Do not save: session-specific task details, anything duplicating CLAUDE.md.

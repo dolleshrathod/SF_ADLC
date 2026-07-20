@@ -1,0 +1,2 @@
+- [Naming & metadata conventions](naming_and_metadata_conventions.md) — confirmed file/object naming patterns (permsets, layouts, apps, package.xml sync)
+- [FLS permission set pattern](fls_permission_set_pattern.md) — one permission set per object for object CRUD + FLS, never Profile edits
