@@ -6,7 +6,6 @@
     <hasActivationRequired>false</hasActivationRequired>
     <applicationVisibilities>
         <application>Order_Management</application>
-        <default>false</default>
         <visible>true</visible>
     </applicationVisibilities>
     <objectPermissions>
@@ -18,16 +17,6 @@
         <modifyAllRecords>false</modifyAllRecords>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
-    <fieldPermissions>
-        <field>Order__c.Account__c</field>
-        <readable>true</readable>
-        <editable>true</editable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <field>Order__c.Amount__c</field>
-        <readable>true</readable>
-        <editable>true</editable>
-    </fieldPermissions>
     <fieldPermissions>
         <field>Order__c.Status__c</field>
         <readable>true</readable>
