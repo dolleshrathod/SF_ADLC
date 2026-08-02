@@ -22,7 +22,9 @@ The salesforce-devops agent deploys AFTER the PR is merged to main.
 
 ## Before starting any task
 
-1. Read `agent-output/current-branch.md` to get the branch name
+1. Read `agent-output/current-branch.md` to get the branch name — this file is gitignored and
+   regenerated fresh by salesforce-design at the start of every task, so it only exists once
+   design has run. If it's missing, stop and tell the user to run salesforce-design first.
 2. Check you are on that branch: `git branch --show-current`
 3. If not on the correct branch: `git checkout [branch-from-current-branch.md]`
 

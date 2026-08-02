@@ -16,6 +16,7 @@ to this branch.
 ## Fast path (simple single-component requests)
 
 If the request is ONE field, ONE validation rule, ONE minor code change:
+
 - Skip the full structured output
 - Write a single-line spec to `agent-output/design-requirements.md`
 - Create the feature branch (see Step 4)
@@ -76,7 +77,9 @@ git checkout main
 git pull origin main
 git checkout -b "$BRANCH"
 
-# Write branch name to agent-output so all agents can reference it
+# agent-output/ is gitignored scratch state — always overwrite current-branch.md here so a
+# stale pointer from a previous (possibly already-merged) task can never leak into this one.
+mkdir -p agent-output
 echo "$BRANCH" > agent-output/current-branch.md
 ```
 

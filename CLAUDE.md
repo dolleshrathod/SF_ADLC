@@ -19,7 +19,7 @@ Design (creates branch) → Admin (commits metadata) → Developer (commits code
 ```
 
 | Step | Agent                      | Model  | Role                                       |
-| ---- | -------------------------- | ------ | ------------------------------------------ |
+| ---- | --------------------------- | ------ | ------------------------------------------- |
 | 1    | `salesforce-design`        | opus   | Analyzes request, creates feature branch   |
 | 2    | `salesforce-admin`         | sonnet | Creates metadata, commits to branch        |
 | 3    | `salesforce-developer`     | opus   | Writes Apex/LWC, commits to branch         |
@@ -34,6 +34,10 @@ Design (creates branch) → Admin (commits metadata) → Developer (commits code
 - Every agent reads `agent-output/current-branch.md` to know which branch to use
 - All agents except devops commit to the feature branch — never to main
 - `salesforce-devops` only runs after user confirms PR is merged
+- `agent-output/` is gitignored, local-only scratch state — never committed. It's regenerated
+  from scratch by `salesforce-design` at the start of every task, so a completed task's branch
+  pointer can never leak into the next one. If a downstream agent finds `current-branch.md`
+  missing, that means design hasn't run yet for this task — it must run first.
 
 ## Confirmation gates
 
@@ -72,7 +76,7 @@ Deployment to an org only happens after the PR is reviewed and merged — none o
 
 ## Project state
 
-This is a Salesforce DX project scaffolded from the standard SFDX template (target org alias: `sfperOrg`, namespace: none, API version: 67.0). The `force-app/main/default/` metadata folders (`classes`, `triggers`, `lwc`, `aura`, `objects`, `applications`, `flexipages`, `layouts`, `permissionsets`, `staticresources`, `tabs`, `contentassets`) are currently all empty — no custom Apex, LWC/Aura components, or objects have been built yet. When adding the first metadata of a given type, follow Salesforce's standard folder/file conventions for that type (e.g. `classes/Foo.cls` + `Foo.cls-meta.xml`; `lwc/foo/foo.js` + `.html` + `.js-meta.xml`).
+This is a Salesforce DX project scaffolded from the standard SFDX template (target org alias: `Agentfrceorg`, namespace: none, API version: 67.0). The `force-app/main/default/` metadata folders (`classes`, `triggers`, `lwc`, `aura`, `objects`, `applications`, `flexipages`, `layouts`, `permissionsets`, `staticresources`, `tabs`, `contentassets`) are currently all empty — no custom Apex, LWC/Aura components, or objects have been built yet. When adding the first metadata of a given type, follow Salesforce's standard folder/file conventions for that type (e.g. `classes/Foo.cls` + `Foo.cls-meta.xml`; `lwc/foo/foo.js` + `.html` + `.js-meta.xml`).
 
 ## Commands
 

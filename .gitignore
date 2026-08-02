@@ -42,6 +42,14 @@ $RECYCLE.BIN/
 # Local environment variables
 .env
 
+# MCP server config (contains local secrets/tokens)
+.mcp.json
+
+# Agent orchestration scratch state — local working-session pointers (current branch,
+# in-flight design spec), not deliverables. Regenerated fresh by salesforce-design each task.
+agent-output/*
+!agent-output/.gitkeep
+
 # Python Salesforce Functions
 **/__pycache__/
 **/.venv/
