@@ -31,7 +31,7 @@ _(none — remove table if no warnings)_
 ## Checklist results
 
 | Check                                                    | Result        |
-| --------------------------------------------------------- | -------------- |
+| --------------------------------------------------------- | ------------- |
 | SOQL/DML in loops                                        | {{pass/fail}} |
 | Bulkification                                            | {{pass/fail}} |
 | `with sharing` on service/handler classes                | {{pass/fail}} |

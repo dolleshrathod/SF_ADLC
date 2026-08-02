@@ -75,7 +75,7 @@ NOW: verify branch → write tests → commit to branch → stop
 ## Required scenarios per method
 
 | Scenario                       | Required                                |
-| ------------------------------- | ---------------------------------------- |
+| ------------------------------ | ---------------------------------------- |
 | Positive (happy path)          | Always                                  |
 | Negative (error/invalid input) | Always                                  |
 | Bulk (200+ records)            | Triggers and batch only                 |

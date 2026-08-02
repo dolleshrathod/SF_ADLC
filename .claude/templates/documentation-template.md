@@ -13,7 +13,7 @@
 ### Admin / declarative
 
 | Type                                              | Name     | Path     | Purpose     |
-| --------------------------------------------------- | -------- | -------- | ----------- |
+| -------------------------------------------------- | -------- | -------- | ----------- |
 | {{Custom Object / Field / Flow / Permission Set}} | {{name}} | {{path}} | {{purpose}} |
 
 ### Programmatic
