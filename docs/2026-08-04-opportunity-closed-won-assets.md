@@ -108,24 +108,31 @@ Async path, in order:
 
 1. **`Get_Line_Items`** — Get Records on `OpportunityLineItem` where `OpportunityId = {!$Record.Id}`,
    all records / all fields (`storeOutputAutomatically=true`, `getFirstRecordOnly=false`).
-2. **`Has_Line_Items`** (Decision) — proceeds only when `Get_Line_Items` `IsBlank = false`;
-   otherwise the interview ends with no further action (`defaultConnectorLabel="No Line Items"`).
-3. **`Loop_Line_Items`** — loops over `Get_Line_Items` in ascending order.
-4. **`Set_Asset_Fields`** (inside loop, Assignment) — builds `vAssetRecord`:
+   Connects directly to `Loop_Line_Items` — there is no explicit empty-check Decision (see the
+   "`Has_Line_Items` removed post-merge" note under Known limitations).
+2. **`Loop_Line_Items`** — loops over `Get_Line_Items` in ascending order. When there are zero
+   OpportunityLineItems, the loop's `noMoreValuesConnector` fires immediately without ever
+   entering the loop body, so no Assets are added to `vAssetsToCreate` and the interview proceeds
+   straight to `Create_Assets`/`Decrement_Inventory` with an empty collection — both handle that
+   safely (see below).
+3. **`Set_Asset_Fields`** (inside loop, Assignment) — builds `vAssetRecord`:
    `Name = Loop_Line_Items.Name`, `Product2Id = Loop_Line_Items.Product2Id`,
    `Quantity = Loop_Line_Items.Quantity`, `AccountId = $Record.AccountId`,
    `Opportunity__c = $Record.Id`. `Id` is never assigned.
-5. **`Add_Asset_To_Collection`** (inside loop, Assignment) — adds `vAssetRecord` to the
+4. **`Add_Asset_To_Collection`** (inside loop, Assignment) — adds `vAssetRecord` to the
    `vAssetsToCreate` collection, then loops back to `Loop_Line_Items`.
-6. **`Create_Assets`** (recordCreates, **after** the loop exits via
+5. **`Create_Assets`** (recordCreates, **after** the loop exits via
    `noMoreValuesConnector`) — a single bulk Create Records from `vAssetsToCreate`. No
    Create/Update/Get Records element sits inside the loop — the only DML is this one bulk create.
-   Has a `faultConnector` → `Log_Fault`.
-7. **`Decrement_Inventory`** (actionCalls, `actionType=apex`) — calls the invocable
+   A bulk Create Records with zero records (the no-line-items case) is a safe no-op. Has a
+   `faultConnector` → `Log_Fault`.
+6. **`Decrement_Inventory`** (actionCalls, `actionType=apex`) — calls the invocable
    `InventoryDecrementAction`, passing `Get_Line_Items` directly into the `lineItems` input
-   parameter (the full OLI collection, not a per-iteration record). Has a `faultConnector` →
-   `Log_Fault`.
-8. **`Log_Fault`** (Assignment) — assigns `{!$Flow.FaultMessage}` into the `vFaultMessage`
+   parameter (the full OLI collection, not a per-iteration record). With zero line items this is
+   an empty collection, which `aggregateQuantitySold`/`decrement` already handle gracefully with
+   no exception and no DML (see `testNullAndEmptyInputsAreHandledWithoutError`). Has a
+   `faultConnector` → `Log_Fault`.
+7. **`Log_Fault`** (Assignment) — assigns `{!$Flow.FaultMessage}` into the `vFaultMessage`
    text variable. This is the terminal node for both fault connectors; `vFaultMessage` is not
    surfaced anywhere beyond this local assignment (matches the accepted pattern from the prior
    `Order_Amount_Creates_Task` feature).
@@ -163,7 +170,9 @@ Logic (`decrement` → `aggregateQuantitySold` → `applyDecrements` → `queryI
    scheduled path (only if this save is what caused the record to newly meet the Closed Won
    filter — re-saving an already-Closed-Won Opportunity does not re-trigger it).
 3. `Get_Line_Items` fetches every `OpportunityLineItem` on that Opportunity (up to ~150 typical).
-   `Has_Line_Items` short-circuits the interview if there are none.
+   If there are none, `Loop_Line_Items`'s `noMoreValuesConnector` fires immediately (no explicit
+   empty-check Decision — see Known limitations) and the interview proceeds with an empty
+   `vAssetsToCreate` collection.
 4. `Loop_Line_Items` builds one in-memory Asset per OLI (`Set_Asset_Fields` +
    `Add_Asset_To_Collection`) — Name/Product2Id/Quantity from the line item, AccountId from the
    Opportunity, and the new `Opportunity__c` lookup back to the Opportunity. No DML happens
@@ -325,6 +334,21 @@ Two separate, both-still-needed permission tracks exist for this feature — do 
   and the null/empty-input handling in `aggregateQuantitySold`). However, any future process that
   inserts `Inventory__c` records must supply `Product__c` by convention — the platform no longer
   enforces its presence.
+- **`Has_Line_Items` Decision removed post-merge**: the Flow originally had a `Has_Line_Items`
+  Decision element between `Get_Line_Items` and `Loop_Line_Items` that checked
+  `Get_Line_Items IsBlank = false` before entering the loop. A real MCP deploy attempt against
+  `Agentfrceorg` failed with "field integrity exception: unknown (A condition doesn't support
+  "Get_Line_Items" Is Blank. Remove the condition or change the resource.)" — this org's Flow
+  metadata validation rejects the `IsBlank` operator against a record-collection resource
+  (`Get_Line_Items` has `getFirstRecordOnly=false`, i.e. it's a collection, not a single record)
+  directly in a Decision condition. The Decision was removed entirely and `Get_Line_Items`'s
+  connector now targets `Loop_Line_Items` directly. This is behaviorally equivalent to the
+  original design: a Flow Loop over an empty collection takes its `noMoreValuesConnector` path
+  immediately without entering the loop body, so zero OpportunityLineItems still naturally results
+  in zero Assets added to `vAssetsToCreate`; `Create_Assets` with an empty collection is a safe
+  no-op bulk Create Records; and `InventoryDecrementAction.decrement()` already returns early on
+  an empty aggregated map (`testNullAndEmptyInputsAreHandledWithoutError`). Net effect: identical
+  behavior with one fewer element, and the deploy error is resolved.
 - **`Decimal.valueOf(lineItem.Quantity)` compile error corrected post-merge**: `aggregateQuantitySold`
   originally wrapped `lineItem.Quantity` in `Decimal.valueOf()`, assuming the field was `Double`.
   A real MCP deploy attempt failed with "Method does not exist or incorrect signature: void
@@ -366,8 +390,8 @@ manifest/package.xml
 
 ## Deployment
 
-Deployed to `Agentfrceorg` via Salesforce MCP after three post-merge fixes (see Known limitations
-and Review history above) resolved the errors from the first two deploy attempts. Apex and the
+Deployed to `Agentfrceorg` via Salesforce MCP after four post-merge fixes (see Known limitations
+and Review history above) resolved the errors from the first three deploy attempts. Apex and the
 Flow deployed together, as required — the Flow does not validate without `InventoryDecrementAction`
 already present and compiling successfully.
 
