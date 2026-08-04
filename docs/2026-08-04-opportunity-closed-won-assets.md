@@ -37,16 +37,16 @@ pulled from the parent Opportunity instead.
 
 ### Admin / declarative
 
-| Type           | Name                                    | Path                                                                                    | Purpose                                                                           |
-| -------------- | --------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Field          | `Asset.Opportunity__c`                  | `force-app/main/default/objects/Asset/fields/Opportunity__c.field-meta.xml`             | Lookup back to the closed Opportunity that created the Asset                      |
-| Custom object  | `Inventory__c`                          | `force-app/main/default/objects/Inventory__c/Inventory__c.object-meta.xml`              | Tracks quantity-on-hand per Product2                                              |
-| Field          | `Inventory__c.Product__c`               | `force-app/main/default/objects/Inventory__c/fields/Product__c.field-meta.xml`          | Required lookup to Product2, keys the inventory record                            |
-| Field          | `Inventory__c.Quantity_On_Hand__c`      | `force-app/main/default/objects/Inventory__c/fields/Quantity_On_Hand__c.field-meta.xml` | Number(18,2), decremented by the Apex action                                      |
-| Permission set | `AssetAccess`                           | `force-app/main/default/permissionsets/AssetAccess.permissionset-meta.xml`              | FLS (read/edit) on `Asset.Opportunity__c`                                         |
-| Permission set | `InventoryAccess`                       | `force-app/main/default/permissionsets/InventoryAccess.permissionset-meta.xml`          | Object CRUD + FLS on `Inventory__c` fields                                        |
-| Flow           | `Opportunity_Closed_Won_Creates_Assets` | `force-app/main/default/flows/Opportunity_Closed_Won_Creates_Assets.flow-meta.xml`      | Orchestrates Asset creation and inventory decrement on Closed Won transition      |
-| Manifest       | —                                       | `manifest/package.xml`                                                                  | `CustomField` wildcard type added so the standard-Asset field addition is covered |
+| Type           | Name                                    | Path                                                                                    | Purpose                                                                             |
+| -------------- | --------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Field          | `Asset.Opportunity__c`                  | `force-app/main/default/objects/Asset/fields/Opportunity__c.field-meta.xml`             | Lookup back to the closed Opportunity that created the Asset                        |
+| Custom object  | `Inventory__c`                          | `force-app/main/default/objects/Inventory__c/Inventory__c.object-meta.xml`              | Tracks quantity-on-hand per Product2                                                |
+| Field          | `Inventory__c.Product__c`               | `force-app/main/default/objects/Inventory__c/fields/Product__c.field-meta.xml`          | Required lookup to Product2, keys the inventory record (`deleteConstraint=SetNull`) |
+| Field          | `Inventory__c.Quantity_On_Hand__c`      | `force-app/main/default/objects/Inventory__c/fields/Quantity_On_Hand__c.field-meta.xml` | Number(18,2), decremented by the Apex action                                        |
+| Permission set | `AssetAccess`                           | `force-app/main/default/permissionsets/AssetAccess.permissionset-meta.xml`              | FLS (read/edit) on `Asset.Opportunity__c`                                           |
+| Permission set | `InventoryAccess`                       | `force-app/main/default/permissionsets/InventoryAccess.permissionset-meta.xml`          | Object CRUD + FLS on `Inventory__c` fields                                          |
+| Flow           | `Opportunity_Closed_Won_Creates_Assets` | `force-app/main/default/flows/Opportunity_Closed_Won_Creates_Assets.flow-meta.xml`      | Orchestrates Asset creation and inventory decrement on Closed Won transition        |
+| Manifest       | —                                       | `manifest/package.xml`                                                                  | `CustomField` wildcard type added so the standard-Asset field addition is covered   |
 
 ### Programmatic
 
@@ -71,10 +71,10 @@ limitations) because nothing in this feature actually creates Tasks/Events again
 unlike `Order__c` in the prior feature, this object has no automation that needs `Task.WhatId`,
 so the flag was likely copied forward rather than intentionally needed.
 
-| Label            | API name              | Type             | Required | Notes                                        |
+| Label            | API name              | Type             | Required | Notes                                       |
 | ---------------- | --------------------- | ---------------- | -------- | -------------------------------------------- |
-| Product          | `Product__c`          | Lookup(Product2) | Yes      | `deleteConstraint=Restrict`; keys the record |
-| Quantity On Hand | `Quantity_On_Hand__c` | Number, 18.2     | No       | Decremented by `InventoryDecrementAction`    |
+| Product          | `Product__c`          | Lookup(Product2) | Yes      | `deleteConstraint=SetNull`; keys the record |
+| Quantity On Hand | `Quantity_On_Hand__c` | Number, 18.2     | No       | Decremented by `InventoryDecrementAction`   |
 
 ### Permission sets
 
@@ -284,6 +284,19 @@ transaction) so the happy-path tests reflect a properly provisioned user.
   `InventoryDecrementAction` with no explicit version pin — the Flow and Apex class must be
   deployed together (Apex first, or in the same deployment), otherwise the Flow fails to
   validate/deploy.
+- **`Inventory__c.Product__c` deleteConstraint corrected post-merge**: originally documented and
+  deployed as `deleteConstraint=Restrict`, this was changed to `deleteConstraint=SetNull` after a
+  real MCP deploy attempt against Agentfrceorg failed with "Cannot add a lookup relationship child
+  with cascade or restrict options to Product2" — this org does not allow Restrict/Cascade on
+  custom lookups to the standard Product2 object.
+- **`Decimal.valueOf(lineItem.Quantity)` compile error corrected post-merge**: `aggregateQuantitySold`
+  originally wrapped `lineItem.Quantity` in `Decimal.valueOf()`, assuming the field was `Double`.
+  A real MCP deploy attempt failed with "Method does not exist or incorrect signature: void
+  valueOf(Decimal) from the type Decimal" — `OpportunityLineItem.Quantity` is already `Decimal`
+  in Apex (describe reports its SOQL type as "double", but the Apex-side field type is `Decimal`),
+  so the conversion call was both unnecessary and invalid. Fixed to a direct assignment. This also
+  means the merged PR was never actually proven to compile by code review alone — type errors like
+  this are invisible to a review gate and only surface at deploy time.
 
 ## File locations
 
@@ -310,14 +323,19 @@ manifest/package.xml
   `AssetAccess` must happen before production go-live or inventory decrement silently fails for
   most real users (critical rollout step, not a code defect); (2)
   `Inventory__c.enableActivities=true` is unused by this feature (minor, non-blocking).
+- Post-merge deploy-blocking fixes (`6dc08bf`, `723207f`): two errors surfaced only on the real
+  MCP `deploy_metadata` call against `Agentfrceorg` — see the two "corrected post-merge" bullets
+  above. Neither was caught by declarative code review since one is an org-specific schema
+  constraint and the other is an Apex type error, both only detectable by an actual compile/deploy
+  attempt.
 
 ## Deployment
 
-Not yet deployed. Per project workflow, deployment only happens via `salesforce-devops` after
-this branch's PR is merged to `main`, using the Salesforce MCP (no `sf`/`sfdx` CLI for deploys)
-against target org `Agentfrceorg`. Apex and the Flow must deploy together — the Flow will not
-validate without `InventoryDecrementAction` already present.
+Deployed to `Agentfrceorg` via Salesforce MCP after two post-merge fixes (see Known limitations
+and Review history above) resolved the errors from the first deploy attempt. Apex and the Flow
+deployed together, as required — the Flow does not validate without `InventoryDecrementAction`
+already present and compiling successfully.
 
-**Reminder for the deploying/rollout step**: assign `InventoryAccess` and `AssetAccess` to the
-appropriate profiles/permission-set groups (e.g. Sales) as part of, or immediately after, this
-deployment — see Known limitations above.
+**Reminder for the rollout step**: assign `InventoryAccess` and `AssetAccess` to the
+appropriate profiles/permission-set groups (e.g. Sales) — see Known limitations above. This has
+not yet been done as of this deployment.

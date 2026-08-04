@@ -90,7 +90,10 @@ public with sharing class InventoryDecrementAction {
           continue;
         }
 
-        Decimal quantitySold = Decimal.valueOf(lineItem.Quantity);
+        // OpportunityLineItem.Quantity is a Decimal in Apex (describe reports its
+        // SOQL type as "double", but there is no Decimal.valueOf(Decimal) overload),
+        // so assign it directly - no conversion is needed or possible.
+        Decimal quantitySold = lineItem.Quantity;
         Decimal runningTotal = quantitySoldByProductId.get(lineItem.Product2Id);
         quantitySoldByProductId.put(
           lineItem.Product2Id,
