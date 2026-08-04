@@ -172,7 +172,6 @@
             <connector>
                 <targetReference>Get_Line_Items</targetReference>
             </connector>
-            <label>Run Asynchronously</label>
             <pathType>AsyncAfterCommit</pathType>
         </scheduledPaths>
         <doesRequireRecordChangedToMeetCriteria
