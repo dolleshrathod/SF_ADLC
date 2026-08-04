@@ -11,22 +11,25 @@ files yourself.
 
 ```
 Design (creates branch) → Admin (commits metadata) → Developer (commits code)
-→ Unit Testing (commits tests) → Code Review → Documentation (commits docs + pushes)
+→ Unit Testing (commits tests) → Code Review → Documentation (commits docs)
+                                                              ↓
+                                          Orchestrator pushes branch + opens PR (GitHub MCP)
                                                               ↓
                                                     User merges PR on GitHub
                                                               ↓
                                                     DevOps (deploys from main)
 ```
 
-| Step | Agent                      | Model  | Role                                       |
-| ---- | --------------------------- | ------ | ------------------------------------------- |
-| 1    | `salesforce-design`        | opus   | Analyzes request, creates feature branch   |
-| 2    | `salesforce-admin`         | sonnet | Creates metadata, commits to branch        |
-| 3    | `salesforce-developer`     | opus   | Writes Apex/LWC, commits to branch         |
-| 4    | `salesforce-unit-testing`  | sonnet | Writes tests, commits to branch            |
-| 5    | `salesforce-code-review`   | sonnet | Reviews branch — read only, no commits     |
-| 6    | `salesforce-documentation` | sonnet | Writes docs, commits + pushes final branch |
-| 7    | `salesforce-devops`        | opus   | Deploys from main AFTER PR is merged       |
+| Step | Agent                      | Model  | Role                                                         |
+| ---- | --------------------------- | ------ | -------------------------------------------------------------- |
+| 1    | `salesforce-design`        | opus   | Analyzes request, creates feature branch                     |
+| 2    | `salesforce-admin`         | sonnet | Creates metadata, commits to branch                          |
+| 3    | `salesforce-developer`     | opus   | Writes Apex/LWC, commits to branch                           |
+| 4    | `salesforce-unit-testing`  | sonnet | Writes tests, commits to branch                              |
+| 5    | `salesforce-code-review`   | sonnet | Reviews branch — read only, no commits                       |
+| 6    | `salesforce-documentation` | sonnet | Writes docs, commits to branch                               |
+| 7    | orchestrator (you)         | —      | Pushes branch, opens + merges PR (see Git push policy below) |
+| 8    | `salesforce-devops`        | opus   | Deploys from main AFTER PR is merged                         |
 
 ## Branch flow
 
@@ -38,6 +41,27 @@ Design (creates branch) → Admin (commits metadata) → Developer (commits code
   from scratch by `salesforce-design` at the start of every task, so a completed task's branch
   pointer can never leak into the next one. If a downstream agent finds `current-branch.md`
   missing, that means design hasn't run yet for this task — it must run first.
+
+## Git push policy
+
+Local `git push` on this machine authenticates as a GitHub identity that does **not** have write
+access to this repo (confirmed repeatedly: `403 Permission to srinialuri/SF_ADLC.git denied to
+nareshas-ops`). Feature-branch agents (admin, developer, unit-testing, documentation) hit this
+every time they try to push themselves, so:
+
+- **Feature-branch agents commit locally only.** None of them run `git push`. If an agent's
+  instructions say to push, that's stale — commit and stop there.
+- **The orchestrator pushes.** After an agent finishes its commits, the orchestrator (you) pushes
+  using the **GitHub MCP server tools** — `mcp__github__create_branch` (only if the branch doesn't
+  exist on origin yet), `mcp__github__push_files` to land the commit's file contents, and
+  `mcp__github__create_pull_request` / `mcp__github__merge_pull_request` for the PR itself. This is
+  the default and preferred path — it works regardless of the local git credential.
+- **Fallback only:** if the GitHub MCP server tools are unavailable in a session, fall back to
+  local `git push` — but expect the 403 above unless the user has fixed local git credentials
+  first (e.g. `gh auth switch` to an account with push access), and tell the user plainly if it
+  fails rather than retrying blindly.
+- This applies to every branch push/PR step in this workflow, including design's newly created
+  branch, each agent's incremental commits, and any post-merge hotfix branches.
 
 ## Confirmation gates
 

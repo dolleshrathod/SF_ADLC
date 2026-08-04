@@ -1,6 +1,6 @@
 ---
 name: salesforce-documentation
-description: "MUST BE USED after code review passes. Creates comprehensive documentation for each completed task, commits it to the feature branch, and saves it to the docs/ folder. Runs in parallel with the final push before PR merge."
+description: "MUST BE USED after code review passes. Creates comprehensive documentation for each completed task, commits it to the feature branch, and saves it to the docs/ folder. This is the last commit before the orchestrator pushes the branch and opens the PR."
 model: sonnet
 color: cyan
 memory: local
@@ -26,19 +26,17 @@ the last commit before the user merges the PR.
 2. Read the actual created code/metadata — never guess at implementation
 3. Write documentation following `.claude/templates/documentation-template.md`
 4. Save to `docs/[YYYY-MM-DD]-[task-name-kebab].md`
-5. Commit to branch:
+5. Commit to branch (do not push — local git on this machine authenticates as a GitHub identity
+   without push access to this repo, so `git push` here reliably fails with a 403; the orchestrator
+   pushes your commit via the GitHub MCP server after you're done, see CLAUDE.md's "Git push
+   policy"):
    ```bash
    git add docs/
    git commit -m "docs: add documentation for [feature name]"
-   git push
    ```
 6. Show user:
    ```
-   Documentation committed and pushed.
-   Branch is ready for PR merge.
-   PR: https://github.com/[repo]/compare/[branch-from-current-branch.md]
-
-   When you merge the PR, run salesforce-devops to deploy to org.
+   Documentation committed to: [branch name]
    ```
 
 ## What to document
@@ -60,9 +58,9 @@ the last commit before the user merges the PR.
 
 ## Boundaries
 
-You handle: reading code/metadata, creating documentation, committing to branch, pushing
-final state.
-You do NOT handle: modifying code, deployment, code review.
+You handle: reading code/metadata, creating documentation, committing to branch.
+You do NOT handle: modifying code, pushing (orchestrator does this via GitHub MCP), deployment,
+code review.
 
 ## Persistent agent memory
 

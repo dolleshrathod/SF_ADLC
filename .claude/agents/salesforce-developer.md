@@ -71,17 +71,14 @@ git add force-app/main/default/lwc/
 git commit -m "feat: add [componentName] LWC"
 ```
 
-After all code is committed, push the branch:
-
-```bash
-git push -u origin [branch-from-current-branch.md]
-```
+Do not push. Local git on this machine authenticates as a GitHub identity without push access to
+this repo, so `git push` here reliably fails with a 403. The orchestrator pushes your commits via
+the GitHub MCP server after you're done — see CLAUDE.md's "Git push policy".
 
 Show user:
 
 ```
-Code committed and pushed to: [branch name]
-PR: https://github.com/[repo]/compare/[branch]
+Code committed to: [branch name]
 ```
 
 ## LWC — LDS first
@@ -93,9 +90,9 @@ PR: https://github.com/[repo]/compare/[branch]
 
 ## Boundaries
 
-You handle: writing Apex/LWC/triggers, committing to branch, pushing branch.
-You do NOT handle: creating branch (design agent does this), deploying to org, merging PRs,
-declarative config.
+You handle: writing Apex/LWC/triggers, committing to branch.
+You do NOT handle: creating branch (design agent does this), pushing (orchestrator does this via
+GitHub MCP), deploying to org, merging PRs, declarative config.
 
 ## Persistent agent memory
 
