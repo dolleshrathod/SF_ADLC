@@ -100,7 +100,34 @@ Deployment to an org only happens after the PR is reviewed and merged — none o
 
 ## Project state
 
-This is a Salesforce DX project scaffolded from the standard SFDX template (target org alias: `Agentfrceorg`, namespace: none, API version: 67.0). The `force-app/main/default/` metadata folders (`classes`, `triggers`, `lwc`, `aura`, `objects`, `applications`, `flexipages`, `layouts`, `permissionsets`, `staticresources`, `tabs`, `contentassets`) are currently all empty — no custom Apex, LWC/Aura components, or objects have been built yet. When adding the first metadata of a given type, follow Salesforce's standard folder/file conventions for that type (e.g. `classes/Foo.cls` + `Foo.cls-meta.xml`; `lwc/foo/foo.js` + `.html` + `.js-meta.xml`).
+Salesforce DX project (target org alias: `Agentfrceorg`, namespace: none, API version: 67.0).
+
+Features built so far (authoritative record in `docs/`):
+
+- **Order Management** — `Order__c` custom object, `Order_Amount_Creates_Task` Flow, `OrderManagementAccess` permission set, Order Management Lightning App, tab, layout.
+- **Opportunity Closed Won → Assets + Inventory** — `Inventory__c` custom object, `Asset.Opportunity__c` lookup field, `Opportunity_Closed_Won_Creates_Assets` Record-Triggered Flow (async scheduled path), `InventoryDecrementAction` invocable Apex class + test, `AssetAccess` / `InventoryAccess` permission sets.
+- **Supporting** — `ClaudeAgents__c` custom object, `ClaudeAgentsAccess` permission set, `Admin` profile with explicit CRUD + FLS grants for all features above.
+
+When adding a new metadata type for the first time, follow Salesforce's standard folder/file conventions (`classes/Foo.cls` + `Foo.cls-meta.xml`; `lwc/foo/foo.js` + `.html` + `.js-meta.xml`) and update `manifest/package.xml`.
+
+## MCP servers
+
+Three MCP servers are configured in `.mcp.json`:
+
+- **Salesforce** (`@salesforce/mcp`, `--orgs Agentfrceorg`, `--toolsets all`) — used by the orchestrator to deploy metadata post-merge. Do not use `sf project deploy` in the pipeline.
+- **GitHub** (`@modelcontextprotocol/server-github`, uses `GITHUB_PERSONAL_ACCESS_TOKEN` env var) — used by the orchestrator to push branches and manage PRs.
+- **Jira / Atlassian** (`mcp-atlassian`, `JIRA_URL=https://nareshas.atlassian.net`, uses `JIRA_USERNAME` / `JIRA_API_TOKEN` env vars) — available for issue tracking and sprint context.
+
+## Org-specific deployment constraints (Agentfrceorg)
+
+These constraints were discovered from real MCP deploy attempts and are invisible to code review:
+
+- **`deleteConstraint=Restrict` (and Cascade) is disallowed on custom lookup fields to the standard `Product2` object** in this org. Always use `deleteConstraint=SetNull` for lookups to `Product2`.
+- **A required lookup must use `Cascade` or `Restrict` as its delete constraint.** Combined with the constraint above, a required lookup to `Product2` is impossible — mark such fields `required=false`.
+- **`IsBlank` / `IsNull` operators in Flow Decision conditions do not work when the resource is a record collection** (`getFirstRecordOnly=false`). Do not add a Decision to null-check a Get Records collection — connect directly to a Loop; an empty collection naturally exits via `noMoreValuesConnector`.
+- **`Decimal.valueOf()` called on an `OpportunityLineItem.Quantity` field causes a compile error** — `OLI.Quantity` is already `Decimal` in Apex (despite SOQL describe reporting it as `double`). Assign directly without conversion.
+- **Flow and its referenced invocable Apex class must be deployed in the same `deploy_metadata` call** (or the Apex class must already be present and compiled). Deploying the Flow alone fails if the referenced class does not yet exist in the org.
+- **Deploy uses `RunSpecifiedTests`** (not `RunAllTests`) with the relevant test class specified. The deploy rolls back atomically if the test fails. No Dev Hub / scratch org is available on this machine.
 
 ## Commands
 
@@ -141,6 +168,7 @@ Don't bypass these with `--no-verify`; fix lint/format/test failures instead.
 
 - Single default package directory: `force-app` (`sfdx-project.json`). Add new packages here if the project grows a multi-package structure.
 - `.forceignore` excludes `**/jsconfig.json`, `**/.eslintrc.json`, `**/__tests__/**`, and `node_modules/` from org push/pull/status — generated LWC config and test files are local-only and shouldn't round-trip to the org.
-- `manifest/package.xml` is a retrieve/deploy manifest currently scoped to `ApexClass`, `ApexComponent`, `ApexPage`, `ApexTestSuite`, `ApexTrigger`, `AuraDefinitionBundle`, `LightningComponentBundle`, and `StaticResource` (all members, API v67.0). Update it when retrieving other metadata types (objects, permission sets, flexipages, etc.) that aren't yet listed.
+- `manifest/package.xml` currently covers (all `<members>*</members>`, API v67.0): `ApexClass`, `ApexComponent`, `ApexPage`, `ApexTestSuite`, `ApexTrigger`, `AuraDefinitionBundle`, `CustomApplication`, `CustomField`, `CustomObject`, `CustomTab`, `Flow`, `Layout`, `LightningComponentBundle`, `PermissionSet`, `Profile`, `StaticResource`. Add new metadata type entries alphabetically whenever a new type first appears in the repo.
 - ESLint (`eslint.config.js`) has separate rule sets for Aura JS (`@salesforce/eslint-plugin-aura`, recommended + locker configs), LWC JS (`@salesforce/eslint-config-lwc`), LWC test files (same config with `@lwc/lwc/no-unexpected-wire-adapter-usages` turned off, Node globals), and Jest mock files under `**/jest-mocks/**`.
 - Prettier uses `prettier-plugin-apex` and `@prettier/plugin-xml`, with the `lwc` parser for `**/lwc/**/*.html` and the `html` parser for `.cmp`/`.page`/`.component` files.
+- Each subagent has a persistent memory directory at `.claude/agent-memory-local/<agent-name>/` (gitignored). Agents are expected to read their own memory at task start and write durable lessons (org quirks, established patterns) there rather than into `CLAUDE.md`. The orchestrator's own memory lives at `C:\Users\DELL\.claude\projects\...\memory\`.
