@@ -1,0 +1,1 @@
+- [Project Declarative Patterns](project_declarative_patterns.md) — intentional metadata choices and SFDX source-format conventions to avoid flagging as false positives
