@@ -4,4 +4,5 @@
     <label>Issued Date</label>
     <type>Date</type>
     <required>false</required>
+    <apiVersion>67.0</apiVersion>
 </CustomField>
