@@ -6,7 +6,7 @@
         "-y",
         "@salesforce/mcp",
         "--orgs",
-        "Agentfrceorg",
+        "Lwc learning",
         "--toolsets",
         "all"
       ]
@@ -22,7 +22,7 @@
       "command": "uvx",
       "args": ["mcp-atlassian"],
       "env": {
-        "JIRA_URL": "https://nareshas.atlassian.net",
+        "JIRA_URL": "${JIRA_URL}",
         "JIRA_USERNAME": "${JIRA_USERNAME}",
         "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
       }
